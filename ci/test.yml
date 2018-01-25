@@ -1,0 +1,14 @@
+---
+platform: linux
+
+image_resource:
+    type: docker-image
+    source:
+        repository: golang
+        tag: '1.9'
+
+inputs:
+    - name: terraform-intermediate
+
+run:
+    path: terraform-intermediate/ci/test_terraform.sh
