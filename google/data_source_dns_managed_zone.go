@@ -52,11 +52,10 @@ func dataSourceDnsManagedZoneRead(d *schema.ResourceData, meta interface{}) erro
 		return err
 	}
 
-	name := d.Get("name").(string)
-	d.SetId(fmt.Sprintf("projects/%s/managedZones/%s", project, name))
+	d.SetId(fmt.Sprintf("projects/%s/managedZones/%s", project, d.Get("name").(string)))
 
 	zone, err := config.clientDns.ManagedZones.Get(
-		project, name).Do()
+		project, d.Id()).Do()
 	if err != nil {
 		return err
 	}

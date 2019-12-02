@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeTargetHttpProxy() *schema.Resource {
@@ -136,14 +137,20 @@ func resourceComputeTargetHttpProxyCreate(d *schema.ResourceData, meta interface
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating TargetHttpProxy",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating TargetHttpProxy",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create TargetHttpProxy: %s", err)
+		return fmt.Errorf("Error waiting to create TargetHttpProxy: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating TargetHttpProxy %q: %#v", d.Id(), res)
@@ -223,9 +230,16 @@ func resourceComputeTargetHttpProxyUpdate(d *schema.ResourceData, meta interface
 			return fmt.Errorf("Error updating TargetHttpProxy %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating TargetHttpProxy",
+			config.clientCompute, op, project, "Updating TargetHttpProxy",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -259,8 +273,14 @@ func resourceComputeTargetHttpProxyDelete(d *schema.ResourceData, meta interface
 		return handleNotFoundError(err, d, "TargetHttpProxy")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting TargetHttpProxy",
+		config.clientCompute, op, project, "Deleting TargetHttpProxy",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeTargetHttpsProxy() *schema.Resource {
@@ -186,14 +187,20 @@ func resourceComputeTargetHttpsProxyCreate(d *schema.ResourceData, meta interfac
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating TargetHttpsProxy",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating TargetHttpsProxy",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create TargetHttpsProxy: %s", err)
+		return fmt.Errorf("Error waiting to create TargetHttpsProxy: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating TargetHttpsProxy %q: %#v", d.Id(), res)
@@ -282,9 +289,16 @@ func resourceComputeTargetHttpsProxyUpdate(d *schema.ResourceData, meta interfac
 			return fmt.Errorf("Error updating TargetHttpsProxy %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating TargetHttpsProxy",
+			config.clientCompute, op, project, "Updating TargetHttpsProxy",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -310,9 +324,16 @@ func resourceComputeTargetHttpsProxyUpdate(d *schema.ResourceData, meta interfac
 			return fmt.Errorf("Error updating TargetHttpsProxy %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating TargetHttpsProxy",
+			config.clientCompute, op, project, "Updating TargetHttpsProxy",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -338,9 +359,16 @@ func resourceComputeTargetHttpsProxyUpdate(d *schema.ResourceData, meta interfac
 			return fmt.Errorf("Error updating TargetHttpsProxy %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating TargetHttpsProxy",
+			config.clientCompute, op, project, "Updating TargetHttpsProxy",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -366,9 +394,16 @@ func resourceComputeTargetHttpsProxyUpdate(d *schema.ResourceData, meta interfac
 			return fmt.Errorf("Error updating TargetHttpsProxy %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating TargetHttpsProxy",
+			config.clientCompute, op, project, "Updating TargetHttpsProxy",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -402,8 +437,14 @@ func resourceComputeTargetHttpsProxyDelete(d *schema.ResourceData, meta interfac
 		return handleNotFoundError(err, d, "TargetHttpsProxy")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting TargetHttpsProxy",
+		config.clientCompute, op, project, "Deleting TargetHttpsProxy",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

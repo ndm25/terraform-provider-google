@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/structure"
@@ -19,7 +20,7 @@ func resourceBigQueryTable() *schema.Resource {
 		Delete: resourceBigQueryTableDelete,
 		Update: resourceBigQueryTableUpdate,
 		Importer: &schema.ResourceImporter{
-			State: resourceBigQueryTableImport,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			// TableId: [Required] The ID of the table. The ID must contain only
@@ -486,20 +487,17 @@ func resourceBigQueryTableRead(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[INFO] Reading BigQuery table: %s", d.Id())
 
-	project, err := getProject(d, config)
+	id, err := parseBigQueryTableId(d.Id())
 	if err != nil {
 		return err
 	}
 
-	datasetID := d.Get("dataset_id").(string)
-	tableID := d.Get("table_id").(string)
-
-	res, err := config.clientBigQuery.Tables.Get(project, datasetID, tableID).Do()
+	res, err := config.clientBigQuery.Tables.Get(id.Project, id.DatasetId, id.TableId).Do()
 	if err != nil {
-		return handleNotFoundError(err, d, fmt.Sprintf("BigQuery table %q", tableID))
+		return handleNotFoundError(err, d, fmt.Sprintf("BigQuery table %q", id.TableId))
 	}
 
-	d.Set("project", project)
+	d.Set("project", id.Project)
 	d.Set("description", res.Description)
 	d.Set("expiration_time", res.ExpirationTime)
 	d.Set("friendly_name", res.FriendlyName)
@@ -562,15 +560,12 @@ func resourceBigQueryTableUpdate(d *schema.ResourceData, meta interface{}) error
 
 	log.Printf("[INFO] Updating BigQuery table: %s", d.Id())
 
-	project, err := getProject(d, config)
+	id, err := parseBigQueryTableId(d.Id())
 	if err != nil {
 		return err
 	}
 
-	datasetID := d.Get("dataset_id").(string)
-	tableID := d.Get("table_id").(string)
-
-	if _, err = config.clientBigQuery.Tables.Update(project, datasetID, tableID, table).Do(); err != nil {
+	if _, err = config.clientBigQuery.Tables.Update(id.Project, id.DatasetId, id.TableId, table).Do(); err != nil {
 		return err
 	}
 
@@ -582,15 +577,12 @@ func resourceBigQueryTableDelete(d *schema.ResourceData, meta interface{}) error
 
 	log.Printf("[INFO] Deleting BigQuery table: %s", d.Id())
 
-	project, err := getProject(d, config)
+	id, err := parseBigQueryTableId(d.Id())
 	if err != nil {
 		return err
 	}
 
-	datasetID := d.Get("dataset_id").(string)
-	tableID := d.Get("table_id").(string)
-
-	if err := config.clientBigQuery.Tables.Delete(project, datasetID, tableID).Do(); err != nil {
+	if err := config.clientBigQuery.Tables.Delete(id.Project, id.DatasetId, id.TableId).Do(); err != nil {
 		return err
 	}
 
@@ -655,7 +647,7 @@ func flattenExternalDataConfiguration(edc *bigquery.ExternalDataConfiguration) (
 		result["google_sheets_options"] = flattenGoogleSheetsOptions(edc.GoogleSheetsOptions)
 	}
 
-	if edc.IgnoreUnknownValues {
+	if edc.IgnoreUnknownValues == true {
 		result["ignore_unknown_values"] = edc.IgnoreUnknownValues
 	}
 	if edc.MaxBadRecords != 0 {
@@ -710,11 +702,11 @@ func expandCsvOptions(configured interface{}) *bigquery.CsvOptions {
 func flattenCsvOptions(opts *bigquery.CsvOptions) []map[string]interface{} {
 	result := map[string]interface{}{}
 
-	if opts.AllowJaggedRows {
+	if opts.AllowJaggedRows == true {
 		result["allow_jagged_rows"] = opts.AllowJaggedRows
 	}
 
-	if opts.AllowQuotedNewlines {
+	if opts.AllowQuotedNewlines == true {
 		result["allow_quoted_newlines"] = opts.AllowQuotedNewlines
 	}
 
@@ -822,7 +814,7 @@ func flattenTimePartitioning(tp *bigquery.TimePartitioning) []map[string]interfa
 		result["expiration_ms"] = tp.ExpirationMs
 	}
 
-	if tp.RequirePartitionFilter {
+	if tp.RequirePartitionFilter == true {
 		result["require_partition_filter"] = tp.RequirePartitionFilter
 	}
 
@@ -848,22 +840,20 @@ func flattenView(vd *bigquery.ViewDefinition) []map[string]interface{} {
 	return []map[string]interface{}{result}
 }
 
-func resourceBigQueryTableImport(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	config := meta.(*Config)
-	if err := parseImportId([]string{
-		"projects/(?P<project>[^/]+)/datasets/(?P<dataset_id>[^/]+)/tables/(?P<table_id>[^/]+)",
-		"(?P<project>[^/]+)/(?P<dataset_id>[^/]+)/(?P<table_id>[^/]+)",
-		"(?P<dataset_id>[^/]+)/(?P<table_id>[^/]+)",
-	}, d, config); err != nil {
-		return nil, err
-	}
+type bigQueryTableId struct {
+	Project, DatasetId, TableId string
+}
 
-	// Replace import id for the resource id
-	id, err := replaceVars(d, config, "projects/{{project}}/datasets/{{dataset_id}}/tables/{{table_id}}")
-	if err != nil {
-		return nil, fmt.Errorf("Error constructing id: %s", err)
+func parseBigQueryTableId(id string) (*bigQueryTableId, error) {
+	// Expected format is "projects/{{project}}/datasets/{{dataset}}/tables/{{table}}"
+	matchRegex := regexp.MustCompile("^projects/(.+)/datasets/(.+)/tables/(.+)$")
+	subMatches := matchRegex.FindStringSubmatch(id)
+	if subMatches == nil {
+		return nil, fmt.Errorf("Invalid BigQuery table specifier. Expecting projects/{{project}}/datasets/{{dataset}}/tables/{{table}}, got %s", id)
 	}
-	d.SetId(id)
-
-	return []*schema.ResourceData{d}, nil
+	return &bigQueryTableId{
+		Project:   subMatches[1],
+		DatasetId: subMatches[2],
+		TableId:   subMatches[3],
+	}, nil
 }

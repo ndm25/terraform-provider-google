@@ -50,7 +50,6 @@ var (
 		"cluster_config.0.software_config",
 		"cluster_config.0.initialization_action",
 		"cluster_config.0.encryption_config",
-		"cluster_config.0.autoscaling_config",
 	}
 )
 
@@ -252,7 +251,6 @@ func resourceDataprocCluster() *schema.Resource {
 									// API does not honour this if set ...
 									// It always uses whatever is specified for the worker_config
 									// "machine_type": { ... }
-									// "min_cpu_platform": { ... }
 									"disk_config": {
 										Type:     schema.TypeList,
 										Optional: true,
@@ -393,20 +391,6 @@ func resourceDataprocCluster() *schema.Resource {
 								},
 							},
 						},
-						"autoscaling_config": {
-							Type:         schema.TypeList,
-							Optional:     true,
-							AtLeastOneOf: clusterConfigKeys,
-							MaxItems:     1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"policy_uri": {
-										Type:     schema.TypeString,
-										Required: true,
-									},
-								},
-							},
-						},
 					},
 				},
 			},
@@ -419,7 +403,6 @@ func instanceConfigSchema(parent string) *schema.Schema {
 		"cluster_config.0." + parent + ".0.num_instances",
 		"cluster_config.0." + parent + ".0.image_uri",
 		"cluster_config.0." + parent + ".0.machine_type",
-		"cluster_config.0." + parent + ".0.min_cpu_platform",
 		"cluster_config.0." + parent + ".0.disk_config",
 		"cluster_config.0." + parent + ".0.accelerators",
 	}
@@ -455,13 +438,6 @@ func instanceConfigSchema(parent string) *schema.Schema {
 					ForceNew:     true,
 				},
 
-				"min_cpu_platform": {
-					Type:         schema.TypeString,
-					Optional:     true,
-					Computed:     true,
-					AtLeastOneOf: instanceConfigKeys,
-					ForceNew:     true,
-				},
 				"disk_config": {
 					Type:         schema.TypeList,
 					Optional:     true,
@@ -640,10 +616,6 @@ func expandClusterConfig(d *schema.ResourceData, config *Config) (*dataproc.Clus
 		conf.EncryptionConfig = expandEncryptionConfig(cfg)
 	}
 
-	if cfg, ok := configOptions(d, "cluster_config.0.autoscaling_config"); ok {
-		conf.AutoscalingConfig = expandAutoscalingConfig(cfg)
-	}
-
 	if cfg, ok := configOptions(d, "cluster_config.0.master_config"); ok {
 		log.Println("[INFO] got master_config")
 		conf.MasterConfig = expandInstanceGroupConfig(cfg)
@@ -746,14 +718,6 @@ func expandEncryptionConfig(cfg map[string]interface{}) *dataproc.EncryptionConf
 	return conf
 }
 
-func expandAutoscalingConfig(cfg map[string]interface{}) *dataproc.AutoscalingConfig {
-	conf := &dataproc.AutoscalingConfig{}
-	if v, ok := cfg["policy_uri"]; ok {
-		conf.PolicyUri = v.(string)
-	}
-	return conf
-}
-
 func expandInitializationActions(v interface{}) []*dataproc.NodeInitializationAction {
 	actionList := v.([]interface{})
 
@@ -806,9 +770,6 @@ func expandInstanceGroupConfig(cfg map[string]interface{}) *dataproc.InstanceGro
 	}
 	if v, ok := cfg["machine_type"]; ok {
 		icg.MachineTypeUri = GetResourceNameFromSelfLink(v.(string))
-	}
-	if v, ok := cfg["min_cpu_platform"]; ok {
-		icg.MinCpuPlatform = v.(string)
 	}
 	if v, ok := cfg["image_uri"]; ok {
 		icg.ImageUri = v.(string)
@@ -966,7 +927,6 @@ func flattenClusterConfig(d *schema.ResourceData, cfg *dataproc.ClusterConfig) (
 		"worker_config":             flattenInstanceGroupConfig(d, cfg.WorkerConfig),
 		"preemptible_worker_config": flattenPreemptibleInstanceGroupConfig(d, cfg.SecondaryWorkerConfig),
 		"encryption_config":         flattenEncryptionConfig(d, cfg.EncryptionConfig),
-		"autoscaling_config":        flattenAutoscalingConfig(d, cfg.AutoscalingConfig),
 	}
 
 	if len(cfg.InitializationActions) > 0 {
@@ -997,18 +957,6 @@ func flattenEncryptionConfig(d *schema.ResourceData, ec *dataproc.EncryptionConf
 
 	data := map[string]interface{}{
 		"kms_key_name": ec.GcePdKmsKeyName,
-	}
-
-	return []map[string]interface{}{data}
-}
-
-func flattenAutoscalingConfig(d *schema.ResourceData, ec *dataproc.AutoscalingConfig) []map[string]interface{} {
-	if ec == nil {
-		return nil
-	}
-
-	data := map[string]interface{}{
-		"policy_uri": ec.PolicyUri,
 	}
 
 	return []map[string]interface{}{data}
@@ -1097,7 +1045,6 @@ func flattenInstanceGroupConfig(d *schema.ResourceData, icg *dataproc.InstanceGr
 	if icg != nil {
 		data["num_instances"] = icg.NumInstances
 		data["machine_type"] = GetResourceNameFromSelfLink(icg.MachineTypeUri)
-		data["min_cpu_platform"] = icg.MinCpuPlatform
 		data["image_uri"] = icg.ImageUri
 		data["instance_names"] = icg.InstanceNames
 		if icg.DiskConfig != nil {

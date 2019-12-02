@@ -79,13 +79,8 @@ func resourceSqlUserCreate(d *schema.ResourceData, meta interface{}) error {
 
 	mutexKV.Lock(instanceMutexKey(project, instance))
 	defer mutexKV.Unlock(instanceMutexKey(project, instance))
-	var op *sqladmin.Operation
-	insertFunc := func() error {
-		op, err = config.clientSqlAdmin.Users.Insert(project, instance,
-			user).Do()
-		return err
-	}
-	err = retryTimeDuration(insertFunc, d.Timeout(schema.TimeoutCreate))
+	op, err := config.clientSqlAdmin.Users.Insert(project, instance,
+		user).Do()
 
 	if err != nil {
 		return fmt.Errorf("Error, failed to insert "+
@@ -96,7 +91,7 @@ func resourceSqlUserCreate(d *schema.ResourceData, meta interface{}) error {
 	// for which user.Host is an empty string.  That's okay.
 	d.SetId(fmt.Sprintf("%s/%s/%s", user.Name, user.Host, user.Instance))
 
-	err = sqlAdminOperationWait(config, op, project, "Insert User")
+	err = sqlAdminOperationWait(config.clientSqlAdmin, op, project, "Insert User")
 
 	if err != nil {
 		return fmt.Errorf("Error, failure waiting for insertion of %s "+
@@ -177,20 +172,15 @@ func resourceSqlUserUpdate(d *schema.ResourceData, meta interface{}) error {
 
 		mutexKV.Lock(instanceMutexKey(project, instance))
 		defer mutexKV.Unlock(instanceMutexKey(project, instance))
-		var op *sqladmin.Operation
-		updateFunc := func() error {
-			op, err = config.clientSqlAdmin.Users.Update(project, instance, name,
-				user).Host(host).Do()
-			return err
-		}
-		err = retryTimeDuration(updateFunc, d.Timeout(schema.TimeoutUpdate))
+		op, err := config.clientSqlAdmin.Users.Update(project, instance, name,
+			user).Host(host).Do()
 
 		if err != nil {
 			return fmt.Errorf("Error, failed to update"+
 				"user %s into user %s: %s", name, instance, err)
 		}
 
-		err = sqlAdminOperationWait(config, op, project, "Insert User")
+		err = sqlAdminOperationWait(config.clientSqlAdmin, op, project, "Insert User")
 
 		if err != nil {
 			return fmt.Errorf("Error, failure waiting for update of %s "+
@@ -230,7 +220,7 @@ func resourceSqlUserDelete(d *schema.ResourceData, meta interface{}) error {
 			instance, err)
 	}
 
-	err = sqlAdminOperationWait(config, op, project, "Delete User")
+	err = sqlAdminOperationWait(config.clientSqlAdmin, op, project, "Delete User")
 
 	if err != nil {
 		return fmt.Errorf("Error, failure waiting for deletion of %s "+

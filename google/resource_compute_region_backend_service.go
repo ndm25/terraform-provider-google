@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"google.golang.org/api/compute/v1"
 )
 
 func migrateStateNoop(v int, is *terraform.InstanceState, meta interface{}) (*terraform.InstanceState, error) {
@@ -377,14 +378,20 @@ func resourceComputeRegionBackendServiceCreate(d *schema.ResourceData, meta inte
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating RegionBackendService",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating RegionBackendService",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create RegionBackendService: %s", err)
+		return fmt.Errorf("Error waiting to create RegionBackendService: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating RegionBackendService %q: %#v", d.Id(), res)
@@ -551,8 +558,14 @@ func resourceComputeRegionBackendServiceUpdate(d *schema.ResourceData, meta inte
 		return fmt.Errorf("Error updating RegionBackendService %q: %s", d.Id(), err)
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Updating RegionBackendService",
+		config.clientCompute, op, project, "Updating RegionBackendService",
 		int(d.Timeout(schema.TimeoutUpdate).Minutes()))
 
 	if err != nil {
@@ -583,8 +596,14 @@ func resourceComputeRegionBackendServiceDelete(d *schema.ResourceData, meta inte
 		return handleNotFoundError(err, d, "RegionBackendService")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting RegionBackendService",
+		config.clientCompute, op, project, "Deleting RegionBackendService",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google.golang.org/api/appengine/v1"
 )
 
 func resourceAppEngineApplicationUrlDispatchRules() *schema.Resource {
@@ -119,14 +120,20 @@ func resourceAppEngineApplicationUrlDispatchRulesCreate(d *schema.ResourceData, 
 	}
 	d.SetId(id)
 
-	err = appEngineOperationWaitTime(
-		config, res, project, "Creating ApplicationUrlDispatchRules",
+	op := &appengine.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := appEngineOperationWaitTime(
+		config.clientAppEngine, op, project, "Creating ApplicationUrlDispatchRules",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create ApplicationUrlDispatchRules: %s", err)
+		return fmt.Errorf("Error waiting to create ApplicationUrlDispatchRules: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating ApplicationUrlDispatchRules %q: %#v", d.Id(), res)
@@ -197,8 +204,14 @@ func resourceAppEngineApplicationUrlDispatchRulesUpdate(d *schema.ResourceData, 
 		return fmt.Errorf("Error updating ApplicationUrlDispatchRules %q: %s", d.Id(), err)
 	}
 
+	op := &appengine.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = appEngineOperationWaitTime(
-		config, res, project, "Updating ApplicationUrlDispatchRules",
+		config.clientAppEngine, op, project, "Updating ApplicationUrlDispatchRules",
 		int(d.Timeout(schema.TimeoutUpdate).Minutes()))
 
 	if err != nil {
@@ -236,8 +249,14 @@ func resourceAppEngineApplicationUrlDispatchRulesDelete(d *schema.ResourceData, 
 		return handleNotFoundError(err, d, "ApplicationUrlDispatchRules")
 	}
 
+	op := &appengine.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = appEngineOperationWaitTime(
-		config, res, project, "Deleting ApplicationUrlDispatchRules",
+		config.clientAppEngine, op, project, "Deleting ApplicationUrlDispatchRules",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

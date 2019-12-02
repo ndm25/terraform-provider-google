@@ -108,14 +108,14 @@ func resourceAccessContextManagerAccessPolicyCreate(d *schema.ResourceData, meta
 	}
 	d.SetId(id)
 
-	err = accessContextManagerOperationWaitTime(
+	waitErr := accessContextManagerOperationWaitTime(
 		config, res, "Creating AccessPolicy",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create AccessPolicy: %s", err)
+		return fmt.Errorf("Error waiting to create AccessPolicy: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating AccessPolicy %q: %#v", d.Id(), res)

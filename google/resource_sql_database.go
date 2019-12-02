@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 )
 
 func resourceSQLDatabase() *schema.Resource {
@@ -147,14 +148,20 @@ func resourceSQLDatabaseCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 	d.SetId(id)
 
-	err = sqlAdminOperationWaitTime(
-		config, res, project, "Creating Database",
+	op := &sqladmin.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := sqlAdminOperationWaitTime(
+		config.clientSqlAdmin, op, project, "Creating Database",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create Database: %s", err)
+		return fmt.Errorf("Error waiting to create Database: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating Database %q: %#v", d.Id(), res)
@@ -255,8 +262,14 @@ func resourceSQLDatabaseUpdate(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error updating Database %q: %s", d.Id(), err)
 	}
 
+	op := &sqladmin.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = sqlAdminOperationWaitTime(
-		config, res, project, "Updating Database",
+		config.clientSqlAdmin, op, project, "Updating Database",
 		int(d.Timeout(schema.TimeoutUpdate).Minutes()))
 
 	if err != nil {
@@ -294,8 +307,14 @@ func resourceSQLDatabaseDelete(d *schema.ResourceData, meta interface{}) error {
 		return handleNotFoundError(err, d, "Database")
 	}
 
+	op := &sqladmin.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = sqlAdminOperationWaitTime(
-		config, res, project, "Deleting Database",
+		config.clientSqlAdmin, op, project, "Deleting Database",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

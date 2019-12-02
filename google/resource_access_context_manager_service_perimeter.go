@@ -224,14 +224,14 @@ func resourceAccessContextManagerServicePerimeterCreate(d *schema.ResourceData, 
 	}
 	d.SetId(id)
 
-	err = accessContextManagerOperationWaitTime(
+	waitErr := accessContextManagerOperationWaitTime(
 		config, res, "Creating ServicePerimeter",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create ServicePerimeter: %s", err)
+		return fmt.Errorf("Error waiting to create ServicePerimeter: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating ServicePerimeter %q: %#v", d.Id(), res)

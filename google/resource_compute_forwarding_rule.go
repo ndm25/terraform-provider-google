@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeForwardingRule() *schema.Resource {
@@ -400,14 +401,20 @@ func resourceComputeForwardingRuleCreate(d *schema.ResourceData, meta interface{
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating ForwardingRule",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating ForwardingRule",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create ForwardingRule: %s", err)
+		return fmt.Errorf("Error waiting to create ForwardingRule: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating ForwardingRule %q: %#v", d.Id(), res)
@@ -523,9 +530,16 @@ func resourceComputeForwardingRuleUpdate(d *schema.ResourceData, meta interface{
 			return fmt.Errorf("Error updating ForwardingRule %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating ForwardingRule",
+			config.clientCompute, op, project, "Updating ForwardingRule",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -559,8 +573,14 @@ func resourceComputeForwardingRuleDelete(d *schema.ResourceData, meta interface{
 		return handleNotFoundError(err, d, "ForwardingRule")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting ForwardingRule",
+		config.clientCompute, op, project, "Deleting ForwardingRule",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

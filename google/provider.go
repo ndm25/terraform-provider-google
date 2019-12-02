@@ -167,14 +167,6 @@ func Provider() terraform.ResourceProvider {
 					"GOOGLE_CLOUD_FUNCTIONS_CUSTOM_ENDPOINT",
 				}, CloudFunctionsDefaultBasePath),
 			},
-			"cloud_run_custom_endpoint": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validateCustomEndpoint,
-				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"GOOGLE_CLOUD_RUN_CUSTOM_ENDPOINT",
-				}, CloudRunDefaultBasePath),
-			},
 			"cloud_scheduler_custom_endpoint": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -182,14 +174,6 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"GOOGLE_CLOUD_SCHEDULER_CUSTOM_ENDPOINT",
 				}, CloudSchedulerDefaultBasePath),
-			},
-			"cloud_tasks_custom_endpoint": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validateCustomEndpoint,
-				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"GOOGLE_CLOUD_TASKS_CUSTOM_ENDPOINT",
-				}, CloudTasksDefaultBasePath),
 			},
 			"compute_custom_endpoint": {
 				Type:         schema.TypeString,
@@ -453,9 +437,9 @@ func Provider() terraform.ResourceProvider {
 	return provider
 }
 
-// Generated resources: 86
+// Generated resources: 81
 // Generated IAM resources: 39
-// Total generated resources: 125
+// Total generated resources: 120
 func ResourceMap() map[string]*schema.Resource {
 	resourceMap, _ := ResourceMapWithErrors()
 	return resourceMap
@@ -483,10 +467,7 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_cloudfunctions_function_iam_binding":       ResourceIamBinding(CloudFunctionsCloudFunctionIamSchema, CloudFunctionsCloudFunctionIamUpdaterProducer, CloudFunctionsCloudFunctionIdParseFunc),
 			"google_cloudfunctions_function_iam_member":        ResourceIamMember(CloudFunctionsCloudFunctionIamSchema, CloudFunctionsCloudFunctionIamUpdaterProducer, CloudFunctionsCloudFunctionIdParseFunc),
 			"google_cloudfunctions_function_iam_policy":        ResourceIamPolicy(CloudFunctionsCloudFunctionIamSchema, CloudFunctionsCloudFunctionIamUpdaterProducer, CloudFunctionsCloudFunctionIdParseFunc),
-			"google_cloud_run_domain_mapping":                  resourceCloudRunDomainMapping(),
-			"google_cloud_run_service":                         resourceCloudRunService(),
 			"google_cloud_scheduler_job":                       resourceCloudSchedulerJob(),
-			"google_cloud_tasks_queue":                         resourceCloudTasksQueue(),
 			"google_compute_address":                           resourceComputeAddress(),
 			"google_compute_autoscaler":                        resourceComputeAutoscaler(),
 			"google_compute_backend_bucket":                    resourceComputeBackendBucket(),
@@ -519,7 +500,6 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_compute_route":                             resourceComputeRoute(),
 			"google_compute_router":                            resourceComputeRouter(),
 			"google_compute_router_nat":                        resourceComputeRouterNat(),
-			"google_compute_router_peer":                       resourceComputeRouterBgpPeer(),
 			"google_compute_snapshot":                          resourceComputeSnapshot(),
 			"google_compute_ssl_certificate":                   resourceComputeSslCertificate(),
 			"google_compute_reservation":                       resourceComputeReservation(),
@@ -537,7 +517,6 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_compute_url_map":                           resourceComputeUrlMap(),
 			"google_compute_vpn_tunnel":                        resourceComputeVpnTunnel(),
 			"google_container_analysis_note":                   resourceContainerAnalysisNote(),
-			"google_dataproc_autoscaling_policy":               resourceDataprocAutoscalingPolicy(),
 			"google_dns_managed_zone":                          resourceDNSManagedZone(),
 			"google_filestore_instance":                        resourceFilestoreInstance(),
 			"google_firestore_index":                           resourceFirestoreIndex(),
@@ -617,6 +596,7 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_compute_project_metadata_item":         resourceComputeProjectMetadataItem(),
 			"google_compute_region_instance_group_manager": resourceComputeRegionInstanceGroupManager(),
 			"google_compute_router_interface":              resourceComputeRouterInterface(),
+			"google_compute_router_peer":                   resourceComputeRouterPeer(),
 			"google_compute_security_policy":               resourceComputeSecurityPolicy(),
 			"google_compute_shared_vpc_host_project":       resourceComputeSharedVpcHostProject(),
 			"google_compute_shared_vpc_service_project":    resourceComputeSharedVpcServiceProject(),
@@ -666,7 +646,6 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_organization_iam_custom_role":          resourceGoogleOrganizationIamCustomRole(),
 			"google_organization_iam_member":               ResourceIamMember(IamOrganizationSchema, NewOrganizationIamUpdater, OrgIdParseFunc),
 			"google_organization_iam_policy":               ResourceIamPolicy(IamOrganizationSchema, NewOrganizationIamUpdater, OrgIdParseFunc),
-			"google_organization_iam_audit_config":         ResourceIamAuditConfig(IamOrganizationSchema, NewOrganizationIamUpdater, OrgIdParseFunc),
 			"google_organization_policy":                   resourceGoogleOrganizationPolicy(),
 			"google_project":                               resourceGoogleProject(),
 			"google_project_iam_policy":                    resourceGoogleProjectIamPolicy(),
@@ -722,7 +701,7 @@ func providerConfigure(d *schema.ResourceData, terraformVersion string) (interfa
 
 	scopes := d.Get("scopes").([]interface{})
 	if len(scopes) > 0 {
-		config.Scopes = make([]string, len(scopes))
+		config.Scopes = make([]string, len(scopes), len(scopes))
 	}
 	for i, scope := range scopes {
 		config.Scopes[i] = scope.(string)
@@ -743,9 +722,7 @@ func providerConfigure(d *schema.ResourceData, terraformVersion string) (interfa
 	config.BinaryAuthorizationBasePath = d.Get("binary_authorization_custom_endpoint").(string)
 	config.CloudBuildBasePath = d.Get("cloud_build_custom_endpoint").(string)
 	config.CloudFunctionsBasePath = d.Get("cloud_functions_custom_endpoint").(string)
-	config.CloudRunBasePath = d.Get("cloud_run_custom_endpoint").(string)
 	config.CloudSchedulerBasePath = d.Get("cloud_scheduler_custom_endpoint").(string)
-	config.CloudTasksBasePath = d.Get("cloud_tasks_custom_endpoint").(string)
 	config.ComputeBasePath = d.Get("compute_custom_endpoint").(string)
 	config.ContainerAnalysisBasePath = d.Get("container_analysis_custom_endpoint").(string)
 	config.DataprocBasePath = d.Get("dataproc_custom_endpoint").(string)

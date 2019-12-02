@@ -46,9 +46,9 @@ func validateHttpHeaders() schema.SchemaValidateFunc {
 			es = append(es, fmt.Errorf("Cannot set the Content-Length header on %s", k))
 			return
 		}
-		r := regexp.MustCompile(`(X-Google-|X-AppEngine-).*`)
 		for key := range headers {
-			if r.MatchString(key) {
+			match, _ := regexp.MatchString("(X-Google-|X-AppEngine-).*", key)
+			if match {
 				es = append(es, fmt.Errorf("Cannot set the %s header on %s", key, k))
 				return
 			}
@@ -270,14 +270,14 @@ func resourceTPUNodeCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 	d.SetId(id)
 
-	err = tpuOperationWaitTime(
+	waitErr := tpuOperationWaitTime(
 		config, res, project, "Creating Node",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create Node: %s", err)
+		return fmt.Errorf("Error waiting to create Node: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating Node %q: %#v", d.Id(), res)
@@ -372,6 +372,7 @@ func resourceTPUNodeUpdate(d *schema.ResourceData, meta interface{}) error {
 		err = tpuOperationWaitTime(
 			config, res, project, "Updating Node",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}

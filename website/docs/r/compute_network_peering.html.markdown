@@ -14,10 +14,9 @@ Manages a network peering within GCE. For more information see
 and
 [API](https://cloud.google.com/compute/docs/reference/latest/networks).
 
--> Both network must create a peering with each other for the peering
-to be functional.
+~> **Note:** Both network must create a peering with each other for the peering to be functional.
 
-~> Subnets IP ranges across peered VPC networks cannot overlap.
+~> **Note:** Subnets IP ranges across peered VPC networks cannot overlap.
 
 ## Example Usage
 
@@ -51,31 +50,15 @@ The following arguments are supported:
 
 * `name` - (Required) Name of the peering.
 
-* `network` - (Required) The primary network of the peering.
+* `network` - (Required) Resource link of the network to add a peering to.
 
-* `peer_network` - (Required) The peer network in the peering. The peer network
-may belong to a different project.
-
-* `export_custom_routes` - (Optional, [Beta](https://terraform.io/docs/providers/google/guides/provider_versions.html))
-Whether to export the custom routes to the peer network. Defaults to `false`.
-
-* `import_custom_routes` - (Optional, [Beta](https://terraform.io/docs/providers/google/guides/provider_versions.html))
-Whether to export the custom routes from the peer network. Defaults to `false`.
+* `peer_network` - (Required) Resource link of the peer network.
 
 ## Attributes Reference
 
 In addition to the arguments listed above, the following computed attributes are
 exported:
 
-* `state` - State for the peering, either `ACTIVE` or `INACTIVE`. The peering is
-`ACTIVE` when there's a matching configuration in the peer network.
+* `state` - State for the peering.
 
 * `state_details` - Details about the current state of the peering.
-
-## Import
-
-VPC network peerings can be imported using the name and project of the primary network the peering exists in and the name of the network peering
-
-```
-$ terraform import google_compute_network_peering.peering_network project-name/network-name/peering-name
-```

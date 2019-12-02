@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeTargetInstance() *schema.Resource {
@@ -164,14 +165,20 @@ func resourceComputeTargetInstanceCreate(d *schema.ResourceData, meta interface{
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating TargetInstance",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating TargetInstance",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create TargetInstance: %s", err)
+		return fmt.Errorf("Error waiting to create TargetInstance: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating TargetInstance %q: %#v", d.Id(), res)
@@ -246,8 +253,14 @@ func resourceComputeTargetInstanceDelete(d *schema.ResourceData, meta interface{
 		return handleNotFoundError(err, d, "TargetInstance")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting TargetInstance",
+		config.clientCompute, op, project, "Deleting TargetInstance",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

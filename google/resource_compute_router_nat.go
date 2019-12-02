@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
 
@@ -394,14 +395,20 @@ func resourceComputeRouterNatCreate(d *schema.ResourceData, meta interface{}) er
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating RouterNat",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating RouterNat",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create RouterNat: %s", err)
+		return fmt.Errorf("Error waiting to create RouterNat: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating RouterNat %q: %#v", d.Id(), res)
@@ -573,8 +580,14 @@ func resourceComputeRouterNatUpdate(d *schema.ResourceData, meta interface{}) er
 		return fmt.Errorf("Error updating RouterNat %q: %s", d.Id(), err)
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Updating RouterNat",
+		config.clientCompute, op, project, "Updating RouterNat",
 		int(d.Timeout(schema.TimeoutUpdate).Minutes()))
 
 	if err != nil {
@@ -617,8 +630,14 @@ func resourceComputeRouterNatDelete(d *schema.ResourceData, meta interface{}) er
 		return handleNotFoundError(err, d, "RouterNat")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting RouterNat",
+		config.clientCompute, op, project, "Deleting RouterNat",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

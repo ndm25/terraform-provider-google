@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeHttpHealthCheck() *schema.Resource {
@@ -210,14 +211,20 @@ func resourceComputeHttpHealthCheckCreate(d *schema.ResourceData, meta interface
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating HttpHealthCheck",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating HttpHealthCheck",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create HttpHealthCheck: %s", err)
+		return fmt.Errorf("Error waiting to create HttpHealthCheck: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating HttpHealthCheck %q: %#v", d.Id(), res)
@@ -359,8 +366,14 @@ func resourceComputeHttpHealthCheckUpdate(d *schema.ResourceData, meta interface
 		return fmt.Errorf("Error updating HttpHealthCheck %q: %s", d.Id(), err)
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Updating HttpHealthCheck",
+		config.clientCompute, op, project, "Updating HttpHealthCheck",
 		int(d.Timeout(schema.TimeoutUpdate).Minutes()))
 
 	if err != nil {
@@ -391,8 +404,14 @@ func resourceComputeHttpHealthCheckDelete(d *schema.ResourceData, meta interface
 		return handleNotFoundError(err, d, "HttpHealthCheck")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting HttpHealthCheck",
+		config.clientCompute, op, project, "Deleting HttpHealthCheck",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

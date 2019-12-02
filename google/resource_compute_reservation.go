@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeReservation() *schema.Resource {
@@ -264,14 +265,20 @@ func resourceComputeReservationCreate(d *schema.ResourceData, meta interface{}) 
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating Reservation",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating Reservation",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create Reservation: %s", err)
+		return fmt.Errorf("Error waiting to create Reservation: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating Reservation %q: %#v", d.Id(), res)
@@ -352,8 +359,14 @@ func resourceComputeReservationDelete(d *schema.ResourceData, meta interface{}) 
 		return handleNotFoundError(err, d, "Reservation")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting Reservation",
+		config.clientCompute, op, project, "Deleting Reservation",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

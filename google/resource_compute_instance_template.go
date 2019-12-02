@@ -769,7 +769,7 @@ func resourceComputeInstanceTemplateCreate(d *schema.ResourceData, meta interfac
 	// Store the ID now
 	d.SetId(fmt.Sprintf("projects/%s/global/instanceTemplates/%s", project, instanceTemplate.Name))
 
-	err = computeOperationWait(config, op, project, "Creating Instance Template")
+	err = computeSharedOperationWait(config.clientCompute, op, project, "Creating Instance Template")
 	if err != nil {
 		return err
 	}
@@ -857,7 +857,7 @@ func reorderDisks(configDisks []interface{}, apiDisks []map[string]interface{}) 
 		return apiDisks
 	}
 
-	result := make([]map[string]interface{}, len(apiDisks))
+	result := make([]map[string]interface{}, len(apiDisks), len(apiDisks))
 
 	/*
 		Disks aren't necessarily returned from the API in the same order they were sent, so gather
@@ -1130,7 +1130,7 @@ func resourceComputeInstanceTemplateDelete(d *schema.ResourceData, meta interfac
 		return fmt.Errorf("Error deleting instance template: %s", err)
 	}
 
-	err = computeOperationWait(config, op, project, "Deleting Instance Template")
+	err = computeOperationWait(config.clientCompute, op, project, "Deleting Instance Template")
 	if err != nil {
 		return err
 	}

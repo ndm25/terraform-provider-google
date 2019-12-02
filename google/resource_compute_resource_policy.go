@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeResourcePolicy() *schema.Resource {
@@ -302,14 +303,20 @@ func resourceComputeResourcePolicyCreate(d *schema.ResourceData, meta interface{
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating ResourcePolicy",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating ResourcePolicy",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create ResourcePolicy: %s", err)
+		return fmt.Errorf("Error waiting to create ResourcePolicy: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating ResourcePolicy %q: %#v", d.Id(), res)
@@ -375,8 +382,14 @@ func resourceComputeResourcePolicyDelete(d *schema.ResourceData, meta interface{
 		return handleNotFoundError(err, d, "ResourcePolicy")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting ResourcePolicy",
+		config.clientCompute, op, project, "Deleting ResourcePolicy",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

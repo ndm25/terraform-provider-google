@@ -144,7 +144,8 @@ func resourceComputeInstanceGroupManager() *schema.Resource {
 
 			"update_strategy": {
 				Type:     schema.TypeString,
-				Computed: true,
+				Optional: true,
+				Default:  "REPLACE",
 				Removed:  "This field has been replaced by `update_policy`",
 			},
 
@@ -320,7 +321,7 @@ func resourceComputeInstanceGroupManagerCreate(d *schema.ResourceData, meta inte
 
 	// Wait for the operation to complete
 	timeoutInMinutes := int(d.Timeout(schema.TimeoutUpdate).Minutes())
-	err = computeOperationWaitTime(config, op, project, "Creating InstanceGroupManager", timeoutInMinutes)
+	err = computeSharedOperationWaitTime(config.clientCompute, op, project, timeoutInMinutes, "Creating InstanceGroupManager")
 	if err != nil {
 		return err
 	}
@@ -497,7 +498,7 @@ func resourceComputeInstanceGroupManagerUpdate(d *schema.ResourceData, meta inte
 		}
 
 		timeoutInMinutes := int(d.Timeout(schema.TimeoutUpdate).Minutes())
-		err = computeOperationWaitTime(config, op, project, "Updating managed group instances", timeoutInMinutes)
+		err = computeSharedOperationWaitTime(config.clientCompute, op, project, timeoutInMinutes, "Updating managed group instances")
 		if err != nil {
 			return err
 		}
@@ -524,7 +525,7 @@ func resourceComputeInstanceGroupManagerUpdate(d *schema.ResourceData, meta inte
 
 		// Wait for the operation to complete:
 		timeoutInMinutes := int(d.Timeout(schema.TimeoutUpdate).Minutes())
-		err = computeOperationWaitTime(config, op, project, "Updating InstanceGroupManager", timeoutInMinutes)
+		err = computeSharedOperationWaitTime(config.clientCompute, op, project, timeoutInMinutes, "Updating InstanceGroupManager")
 		if err != nil {
 			return err
 		}
@@ -545,7 +546,7 @@ func resourceComputeInstanceGroupManagerUpdate(d *schema.ResourceData, meta inte
 
 		// Wait for the operation to complete
 		timeoutInMinutes := int(d.Timeout(schema.TimeoutUpdate).Minutes())
-		err = computeOperationWaitTime(config, op, project, "Updating InstanceGroupManager", timeoutInMinutes)
+		err = computeSharedOperationWaitTime(config.clientCompute, op, project, timeoutInMinutes, "Updating InstanceGroupManager")
 		if err != nil {
 			return err
 		}
@@ -584,7 +585,7 @@ func resourceComputeInstanceGroupManagerDelete(d *schema.ResourceData, meta inte
 
 	// Wait for the operation to complete
 	timeoutInMinutes := int(d.Timeout(schema.TimeoutDelete).Minutes())
-	err = computeOperationWaitTime(config, op, project, "Deleting InstanceGroupManager", timeoutInMinutes)
+	err = computeSharedOperationWaitTime(config.clientCompute, op, project, timeoutInMinutes, "Deleting InstanceGroupManager")
 
 	for err != nil && currentSize > 0 {
 		if !strings.Contains(err.Error(), "timeout") {
@@ -606,7 +607,7 @@ func resourceComputeInstanceGroupManagerDelete(d *schema.ResourceData, meta inte
 		log.Printf("[INFO] timeout occurred, but instance group is shrinking (%d < %d)", instanceGroupSize, currentSize)
 		currentSize = instanceGroupSize
 		timeoutInMinutes := int(d.Timeout(schema.TimeoutDelete).Minutes())
-		err = computeOperationWaitTime(config, op, project, "Deleting InstanceGroupManager", timeoutInMinutes)
+		err = computeSharedOperationWaitTime(config.clientCompute, op, project, timeoutInMinutes, "Deleting InstanceGroupManager")
 	}
 
 	d.SetId("")

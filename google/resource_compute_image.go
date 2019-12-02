@@ -23,6 +23,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeImage() *schema.Resource {
@@ -284,14 +285,20 @@ func resourceComputeImageCreate(d *schema.ResourceData, meta interface{}) error 
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating Image",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating Image",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create Image: %s", err)
+		return fmt.Errorf("Error waiting to create Image: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating Image %q: %#v", d.Id(), res)
@@ -395,9 +402,16 @@ func resourceComputeImageUpdate(d *schema.ResourceData, meta interface{}) error 
 			return fmt.Errorf("Error updating Image %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating Image",
+			config.clientCompute, op, project, "Updating Image",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -432,8 +446,14 @@ func resourceComputeImageDelete(d *schema.ResourceData, meta interface{}) error 
 		return handleNotFoundError(err, d, "Image")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting Image",
+		config.clientCompute, op, project, "Deleting Image",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

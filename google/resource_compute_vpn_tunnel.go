@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google.golang.org/api/compute/v1"
 )
 
 // validatePeerAddr returns false if a tunnel's peer_ip property
@@ -364,14 +365,20 @@ func resourceComputeVpnTunnelCreate(d *schema.ResourceData, meta interface{}) er
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating VpnTunnel",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating VpnTunnel",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create VpnTunnel: %s", err)
+		return fmt.Errorf("Error waiting to create VpnTunnel: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating VpnTunnel %q: %#v", d.Id(), res)
@@ -467,8 +474,14 @@ func resourceComputeVpnTunnelDelete(d *schema.ResourceData, meta interface{}) er
 		return handleNotFoundError(err, d, "VpnTunnel")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting VpnTunnel",
+		config.clientCompute, op, project, "Deleting VpnTunnel",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

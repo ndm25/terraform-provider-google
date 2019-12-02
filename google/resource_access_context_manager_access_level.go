@@ -127,16 +127,6 @@ Format: "major.minor.patch" such as "10.5.301", "9.2.1".`,
 														},
 													},
 												},
-												"require_admin_approval": {
-													Type:        schema.TypeBool,
-													Optional:    true,
-													Description: `Whether the device needs to be approved by the customer admin.`,
-												},
-												"require_corp_owned": {
-													Type:        schema.TypeBool,
-													Optional:    true,
-													Description: `Whether the device needs to be corp owned.`,
-												},
 												"require_screen_lock": {
 													Type:     schema.TypeBool,
 													Optional: true,
@@ -279,14 +269,14 @@ func resourceAccessContextManagerAccessLevelCreate(d *schema.ResourceData, meta 
 	}
 	d.SetId(id)
 
-	err = accessContextManagerOperationWaitTime(
+	waitErr := accessContextManagerOperationWaitTime(
 		config, res, "Creating AccessLevel",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create AccessLevel: %s", err)
+		return fmt.Errorf("Error waiting to create AccessLevel: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating AccessLevel %q: %#v", d.Id(), res)
@@ -521,10 +511,6 @@ func flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicy(v interfa
 		flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyAllowedDeviceManagementLevels(original["allowedDeviceManagementLevels"], d)
 	transformed["os_constraints"] =
 		flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyOsConstraints(original["osConstraints"], d)
-	transformed["require_admin_approval"] =
-		flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireAdminApproval(original["requireAdminApproval"], d)
-	transformed["require_corp_owned"] =
-		flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireCorpOwned(original["requireCorpOwned"], d)
 	return []interface{}{transformed}
 }
 func flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireScreenLock(v interface{}, d *schema.ResourceData) interface{} {
@@ -563,14 +549,6 @@ func flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyOsConstrai
 }
 
 func flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyOsConstraintsOsType(v interface{}, d *schema.ResourceData) interface{} {
-	return v
-}
-
-func flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireAdminApproval(v interface{}, d *schema.ResourceData) interface{} {
-	return v
-}
-
-func flattenAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireCorpOwned(v interface{}, d *schema.ResourceData) interface{} {
 	return v
 }
 
@@ -719,20 +697,6 @@ func expandAccessContextManagerAccessLevelBasicConditionsDevicePolicy(v interfac
 		transformed["osConstraints"] = transformedOsConstraints
 	}
 
-	transformedRequireAdminApproval, err := expandAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireAdminApproval(original["require_admin_approval"], d, config)
-	if err != nil {
-		return nil, err
-	} else if val := reflect.ValueOf(transformedRequireAdminApproval); val.IsValid() && !isEmptyValue(val) {
-		transformed["requireAdminApproval"] = transformedRequireAdminApproval
-	}
-
-	transformedRequireCorpOwned, err := expandAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireCorpOwned(original["require_corp_owned"], d, config)
-	if err != nil {
-		return nil, err
-	} else if val := reflect.ValueOf(transformedRequireCorpOwned); val.IsValid() && !isEmptyValue(val) {
-		transformed["requireCorpOwned"] = transformedRequireCorpOwned
-	}
-
 	return transformed, nil
 }
 
@@ -782,14 +746,6 @@ func expandAccessContextManagerAccessLevelBasicConditionsDevicePolicyOsConstrain
 }
 
 func expandAccessContextManagerAccessLevelBasicConditionsDevicePolicyOsConstraintsOsType(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
-	return v, nil
-}
-
-func expandAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireAdminApproval(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
-	return v, nil
-}
-
-func expandAccessContextManagerAccessLevelBasicConditionsDevicePolicyRequireCorpOwned(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
 	return v, nil
 }
 

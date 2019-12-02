@@ -108,7 +108,6 @@ func resourceCloudFunctionsFunction() *schema.Resource {
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(5 * time.Minute),
 			Read:   schema.DefaultTimeout(5 * time.Minute),
-			Update: schema.DefaultTimeout(5 * time.Minute),
 			Delete: schema.DefaultTimeout(5 * time.Minute),
 		},
 
@@ -161,7 +160,7 @@ func resourceCloudFunctionsFunction() *schema.Resource {
 				ValidateFunc: func(v interface{}, k string) (ws []string, errors []error) {
 					availableMemoryMB := v.(int)
 
-					if !functionAllowedMemory[availableMemoryMB] {
+					if functionAllowedMemory[availableMemoryMB] != true {
 						errors = append(errors, fmt.Errorf("Allowed values for memory (in MB) are: %s . Got %d",
 							joinMapKeys(&functionAllowedMemory), availableMemoryMB))
 					}

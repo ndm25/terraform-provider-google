@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeNetworkEndpoint() *schema.Resource {
@@ -144,14 +145,20 @@ func resourceComputeNetworkEndpointCreate(d *schema.ResourceData, meta interface
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating NetworkEndpoint",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating NetworkEndpoint",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create NetworkEndpoint: %s", err)
+		return fmt.Errorf("Error waiting to create NetworkEndpoint: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating NetworkEndpoint %q: %#v", d.Id(), res)
@@ -267,8 +274,14 @@ func resourceComputeNetworkEndpointDelete(d *schema.ResourceData, meta interface
 		return handleNotFoundError(err, d, "NetworkEndpoint")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting NetworkEndpoint",
+		config.clientCompute, op, project, "Deleting NetworkEndpoint",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

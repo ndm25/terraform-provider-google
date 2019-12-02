@@ -22,6 +22,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"google.golang.org/api/appengine/v1"
 )
 
 func resourceAppEngineStandardAppVersion() *schema.Resource {
@@ -397,14 +398,20 @@ func resourceAppEngineStandardAppVersionCreate(d *schema.ResourceData, meta inte
 	}
 	d.SetId(id)
 
-	err = appEngineOperationWaitTime(
-		config, res, project, "Creating StandardAppVersion",
+	op := &appengine.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := appEngineOperationWaitTime(
+		config.clientAppEngine, op, project, "Creating StandardAppVersion",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create StandardAppVersion: %s", err)
+		return fmt.Errorf("Error waiting to create StandardAppVersion: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating StandardAppVersion %q: %#v", d.Id(), res)
@@ -552,8 +559,14 @@ func resourceAppEngineStandardAppVersionUpdate(d *schema.ResourceData, meta inte
 		return fmt.Errorf("Error updating StandardAppVersion %q: %s", d.Id(), err)
 	}
 
+	op := &appengine.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = appEngineOperationWaitTime(
-		config, res, project, "Updating StandardAppVersion",
+		config.clientAppEngine, op, project, "Updating StandardAppVersion",
 		int(d.Timeout(schema.TimeoutUpdate).Minutes()))
 
 	if err != nil {
@@ -594,8 +607,13 @@ func resourceAppEngineStandardAppVersionDelete(d *schema.ResourceData, meta inte
 		if err != nil {
 			return handleNotFoundError(err, d, "Service")
 		}
+		op := &appengine.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
 		err = appEngineOperationWaitTime(
-			config, res, project, "Deleting Service",
+			config.clientAppEngine, op, project, "Deleting Service",
 			int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 		if err != nil {
@@ -614,8 +632,13 @@ func resourceAppEngineStandardAppVersionDelete(d *schema.ResourceData, meta inte
 		if err != nil {
 			return handleNotFoundError(err, d, "StandardAppVersion")
 		}
+		op := &appengine.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
 		err = appEngineOperationWaitTime(
-			config, res, project, "Deleting StandardAppVersion",
+			config.clientAppEngine, op, project, "Deleting StandardAppVersion",
 			int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 		if err != nil {

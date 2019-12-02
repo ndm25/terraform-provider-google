@@ -87,7 +87,7 @@ func (s *kmsCryptoKeyId) terraformId() string {
 
 func validateKmsCryptoKeyRotationPeriod(value interface{}, _ string) (ws []string, errors []error) {
 	period := value.(string)
-	pattern := regexp.MustCompile(`^([0-9.]*\\d)s$`)
+	pattern := regexp.MustCompile("^([0-9.]*\\d)s$")
 	match := pattern.FindStringSubmatch(period)
 
 	if len(match) == 0 {
@@ -177,11 +177,7 @@ func parseKmsCryptoKeyId(id string, config *Config) (*kmsCryptoKeyId, error) {
 func clearCryptoKeyVersions(cryptoKeyId *kmsCryptoKeyId, config *Config) error {
 	versionsClient := config.clientKms.Projects.Locations.KeyRings.CryptoKeys.CryptoKeyVersions
 
-	listCall := versionsClient.List(cryptoKeyId.cryptoKeyId())
-	if config.UserProjectOverride {
-		listCall.Header().Set("X-Goog-User-Project", cryptoKeyId.KeyRingId.Project)
-	}
-	versionsResponse, err := listCall.Do()
+	versionsResponse, err := versionsClient.List(cryptoKeyId.cryptoKeyId()).Do()
 
 	if err != nil {
 		return err
@@ -189,11 +185,7 @@ func clearCryptoKeyVersions(cryptoKeyId *kmsCryptoKeyId, config *Config) error {
 
 	for _, version := range versionsResponse.CryptoKeyVersions {
 		request := &cloudkms.DestroyCryptoKeyVersionRequest{}
-		destroyCall := versionsClient.Destroy(version.Name, request)
-		if config.UserProjectOverride {
-			destroyCall.Header().Set("X-Goog-User-Project", cryptoKeyId.KeyRingId.Project)
-		}
-		_, err = destroyCall.Do()
+		_, err = versionsClient.Destroy(version.Name, request).Do()
 
 		if err != nil {
 			return err
@@ -205,14 +197,10 @@ func clearCryptoKeyVersions(cryptoKeyId *kmsCryptoKeyId, config *Config) error {
 
 func disableCryptoKeyRotation(cryptoKeyId *kmsCryptoKeyId, config *Config) error {
 	keyClient := config.clientKms.Projects.Locations.KeyRings.CryptoKeys
-	patchCall := keyClient.Patch(cryptoKeyId.cryptoKeyId(), &cloudkms.CryptoKey{
+	_, err := keyClient.Patch(cryptoKeyId.cryptoKeyId(), &cloudkms.CryptoKey{
 		NullFields: []string{"rotationPeriod", "nextRotationTime"},
 	}).
-		UpdateMask("rotationPeriod,nextRotationTime")
-	if config.UserProjectOverride {
-		patchCall.Header().Set("X-Goog-User-Project", cryptoKeyId.KeyRingId.Project)
-	}
-	_, err := patchCall.Do()
+		UpdateMask("rotationPeriod,nextRotationTime").Do()
 
 	return err
 }

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google.golang.org/api/compute/v1"
 )
 
 func resourceComputeDiskResourcePolicyAttachment() *schema.Resource {
@@ -109,14 +110,20 @@ func resourceComputeDiskResourcePolicyAttachmentCreate(d *schema.ResourceData, m
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating DiskResourcePolicyAttachment",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating DiskResourcePolicyAttachment",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create DiskResourcePolicyAttachment: %s", err)
+		return fmt.Errorf("Error waiting to create DiskResourcePolicyAttachment: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating DiskResourcePolicyAttachment %q: %#v", d.Id(), res)
@@ -208,8 +215,14 @@ func resourceComputeDiskResourcePolicyAttachmentDelete(d *schema.ResourceData, m
 		return handleNotFoundError(err, d, "DiskResourcePolicyAttachment")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting DiskResourcePolicyAttachment",
+		config.clientCompute, op, project, "Deleting DiskResourcePolicyAttachment",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

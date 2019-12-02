@@ -84,7 +84,6 @@ so Terraform knows to manage them.
 - [Resource: `google_cloudfunctions_function`](#resource-google_cloudfunctions_function)
 - [Resource: `google_cloudiot_registry`](#resource-google_cloudiot_registry)
 - [Resource: `google_cloudscheduler_job`](#resource-google_cloudscheduler_job)
-- [Resource: `google_cloud_run_service`](#resource-google_cloud_run_service)
 - [Resource: `google_composer_environment`](#resource-google_composer_environment)
 - [Resource: `google_compute_backend_bucket`](#resource-google_compute_backend_bucket)
 - [Resource: `google_compute_backend_service`](#resource-google_compute_backend_service)
@@ -368,7 +367,7 @@ resource "google_cloudiot_registry" "myregistry" {
   name = "%s"
 
   event_notification_config {
-    pubsub_topic_name = google_pubsub_topic.event-topic.id
+    pubsub_topic_name = "${google_pubsub_topic.event-topic.id}"
   }
 }
 
@@ -381,7 +380,7 @@ resource "google_cloudiot_registry" "myregistry" {
   name = "%s"
 
   event_notification_configs {
-    pubsub_topic_name = google_pubsub_topic.event-topic.id
+    pubsub_topic_name = "${google_pubsub_topic.event-topic.id}"
   }
 }
 ```
@@ -390,50 +389,6 @@ resource "google_cloudiot_registry" "myregistry" {
 
 In an attempt to avoid allowing empty blocks in config files, `public_key_certificate` is now
 required on the `credentials` block.
-
-## Resource: `google_cloud_run_service`
-
-Google Cloud Run Service is being released at v1 and there are breaking schema changes that have arisen from changing the underlying API. These breaking changes only affect the Beta version of the resource as it was not previously available in the GA provider.
-
-To support partial rollouts of different revisions, the `spec` block is now nested under `template` and a second `metadata` block has been added alongside `spec`. Now users can make a change and, using a named revision, they can control the rollout of that revision with a higher granularity.
-
-#### Old Config
-
-```hcl
-resource "google_cloud_run_service" "default" {
-  spec {
-    containers {
-      image = "gcr.io/cloudrun/hello"
-      args  = ["arrg2", "pirate"]
-    }
-    container_concurrency = 10
-  }
-}
-```
-
-#### New Config
-
-```hcl
-resource "google_cloud_run_service" "default" {
-  template {
-    spec {
-      containers {
-        image = "gcr.io/cloudrun/hello"
-        args  = ["arrg2", "pirate"]
-      }
-      container_concurrency = 10
-    }
-
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/maxScale"      = "1000"
-        "run.googleapis.com/client-name"        = "cloud-console"
-      }
-      name = "revision-name"
-    }
-  }
-}
-```
 
 ## Resource: `google_cloudscheduler_job`
 
@@ -664,44 +619,7 @@ resource "google_compute_instance_group_manager" "my_igm" {
     zone               = "us-central1-c"
     base_instance_name = "igm"
 
-    instance_template = google_compute_instance_template.my_tmpl.self_link
-}
-```
-
-### New Config
-
-```hcl
-resource "google_compute_instance_group_manager" "my_igm" {
-    name               = "my-igm"
-    zone               = "us-central1-c"
-    base_instance_name = "igm"
-
-    version {
-        name = "prod"
-        instance_template = google_compute_instance_template.my_tmpl.self_link
-    }
-}
-```
-
-### `update_strategy` has been replaced by `update_policy`
-
-To allow much greater control over the updates happening to instance groups
-`update_strategy` has been replaced by `update_policy`. The functionality controlled by `update_strategy` is now controlled by a combination of `update_policy.type` and `update_policy.minimal_action`. `update_strategy = NONE` can be achieved with `type = OPPORTUNISTIC`. The previous values of `RESTART` and `REPLACE` were both `PROACTIVE` types implicitly previously but can now be controlled explicitly.
-
-For more details see the
-[official guide](https://cloud.google.com/compute/docs/instance-groups/rolling-out-updates-to-managed-instance-groups).
-
-### Old Config
-
-```hcl
-resource "google_compute_instance_group_manager" "my_igm" {
-    name               = "my-igm"
-    zone               = "us-central1-c"
-    base_instance_name = "igm"
-
     instance_template = "${google_compute_instance_template.my_tmpl.self_link}"
-
-    update_strategy   = "NONE"
 }
 ```
 
@@ -717,13 +635,16 @@ resource "google_compute_instance_group_manager" "my_igm" {
         name = "prod"
         instance_template = "${google_compute_instance_template.my_tmpl.self_link}"
     }
-
-    update_policy {
-      minimal_action = "RESTART"
-      type           = "OPPORTUNISTIC"
-    }
 }
 ```
+
+### `update_strategy` has been replaced by `update_policy`
+
+To allow much greater control over the updates happening to instance groups
+`update_strategy` has been replaced by `update_policy`. The previous
+functionality to determine if instance should be replaced or restarted can be
+achieved using `update_policy.minimal_action`. For more details see the
+[official guide](https://cloud.google.com/compute/docs/instance-groups/rolling-out-updates-to-managed-instance-groups).
 
 ## Resource: `google_compute_instance_template`
 
@@ -930,7 +851,7 @@ resource "google_compute_subnetwork" "subnet-with-logging" {
   name          = "log-test-subnetwork"
   ip_cidr_range = "10.2.0.0/16"
   region        = "us-central1"
-  network       = google_compute_network.custom-test.self_link
+  network       = "${google_compute_network.custom-test.self_link}"
 
   enable_flow_logs = true
 }
@@ -944,7 +865,7 @@ resource "google_compute_subnetwork" "subnet-with-logging" {
   name          = "log-test-subnetwork"
   ip_cidr_range = "10.2.0.0/16"
   region        = "us-central1"
-  network       = google_compute_network.custom-test.self_link
+  network       = "${google_compute_network.custom-test.self_link}"
 
   log_config {
     aggregation_interval = "INTERVAL_10_MIN"
@@ -1059,7 +980,7 @@ resource "google_compute_network" "container_network" {
 resource "google_container_cluster" "primary" {
   name       = "my-cluster"
   location   = "us-central1"
-  network    = google_compute_network.container_network.name
+  network    = "${google_compute_network.container_network.name}"
 
   initial_node_count = 1
 
@@ -1086,14 +1007,14 @@ resource "google_compute_subnetwork" "container_subnetwork" {
   description   = "auto-created subnetwork for cluster \"my-cluster\""
   ip_cidr_range = "10.2.0.0/16"
   region        = "us-central1"
-  network       = google_compute_network.container_network.self_link
+  network       = "${google_compute_network.container_network.self_link}"
 }
 
 resource "google_container_cluster" "primary" {
   name       = "my-cluster"
   location   = "us-central1"
-  network    = google_compute_network.container_network.name
-  subnetwork = google_compute_subnetwork.container_subnetwork.name
+  network    = "${google_compute_network.container_network.name}"
+  subnetwork = "${google_compute_subnetwork.container_subnetwork.name}"
 
   initial_node_count = 1
 
@@ -1132,6 +1053,11 @@ dashboards.
 
 In an attempt to avoid allowing empty blocks in config files, `channel` is now
 required on the `release_channel` block.
+
+### `cidr_blocks` is now required on block `google_container_cluster.master_authorized_networks_config`
+
+In an attempt to avoid allowing empty blocks in config files, `cidr_blocks` is now
+required on the `master_authorized_networks_config` block.
 
 ### The `disabled` field is now required on the `addons_config` blocks for `http_load_balancing`, `horizontal_pod_autoscaling`, `istio_config`, `cloudrun_config` and `network_policy_config`.
 

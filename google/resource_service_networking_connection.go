@@ -69,21 +69,7 @@ func resourceServiceNetworkingConnectionCreate(d *schema.ResourceData, meta inte
 	}
 
 	parentService := formatParentService(d.Get("service").(string))
-	// We use Patch instead of Create, because we're getting
-	//  "Error waiting for Create Service Networking Connection:
-	//   Error code 9, message: Cannot modify allocated ranges in
-	//   CreateConnection. Please use UpdateConnection."
-	// if we're creating peerings to more than one VPC (like two
-	// CloudSQL instances within one project, peered with two
-	// clusters.)
-	//
-	// This is a workaround for:
-	// https://issuetracker.google.com/issues/131908322
-	//
-	// The API docs don't specify that you can do connections/-,
-	// but that's what gcloud does, and it's easier than grabbing
-	// the connection name.
-	op, err := config.clientServiceNetworking.Services.Connections.Patch(parentService+"/connections/-", connection).UpdateMask("reservedPeeringRanges").Force(true).Do()
+	op, err := config.clientServiceNetworking.Services.Connections.Create(parentService, connection).Do()
 	if err != nil {
 		return err
 	}
@@ -209,7 +195,7 @@ func resourceServiceNetworkingConnectionDelete(d *schema.ResourceData, meta inte
 	}
 
 	err = computeOperationWaitTime(
-		config, op, project, "Updating Network",
+		config.clientCompute, op, project, "Updating Network",
 		int(d.Timeout(schema.TimeoutUpdate).Minutes()))
 	if err != nil {
 		return err

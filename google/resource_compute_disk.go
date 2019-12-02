@@ -24,6 +24,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/customdiff"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
 
@@ -215,7 +216,11 @@ func suppressWindowsFamilyDiff(imageName, familyName string) bool {
 	updatedFamilyString := strings.Replace(familyName, "windows-", "windows-server-", 1)
 	updatedImageName := strings.Replace(imageName, "-dc-", "-", 1)
 
-	return strings.Contains(updatedImageName, updatedFamilyString)
+	if strings.Contains(updatedImageName, updatedFamilyString) {
+		return true
+	}
+
+	return false
 }
 
 func resourceComputeDisk() *schema.Resource {
@@ -293,7 +298,6 @@ https://cloud.google.com/compute/docs/disks/customer-managed-encryption#encrypt_
 							ForceNew: true,
 							Description: `Specifies a 256-bit customer-supplied encryption key, encoded in
 RFC 4648 base64 to either encrypt or decrypt this resource.`,
-							Sensitive: true,
 						},
 						"sha256": {
 							Type:     schema.TypeString,
@@ -626,14 +630,20 @@ func resourceComputeDiskCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 	d.SetId(id)
 
-	err = computeOperationWaitTime(
-		config, res, project, "Creating Disk",
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
+	waitErr := computeOperationWaitTime(
+		config.clientCompute, op, project, "Creating Disk",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create Disk: %s", err)
+		return fmt.Errorf("Error waiting to create Disk: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating Disk %q: %#v", d.Id(), res)
@@ -773,9 +783,16 @@ func resourceComputeDiskUpdate(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Error updating Disk %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating Disk",
+			config.clientCompute, op, project, "Updating Disk",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -802,9 +819,16 @@ func resourceComputeDiskUpdate(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Error updating Disk %q: %s", d.Id(), err)
 		}
 
+		op := &compute.Operation{}
+		err = Convert(res, op)
+		if err != nil {
+			return err
+		}
+
 		err = computeOperationWaitTime(
-			config, res, project, "Updating Disk",
+			config.clientCompute, op, project, "Updating Disk",
 			int(d.Timeout(schema.TimeoutUpdate).Minutes()))
+
 		if err != nil {
 			return err
 		}
@@ -874,7 +898,7 @@ func resourceComputeDiskDelete(d *schema.ResourceData, meta interface{}) error {
 				return fmt.Errorf("Error detaching disk %s from instance %s/%s/%s: %s", call.deviceName, call.project,
 					call.zone, call.instance, err.Error())
 			}
-			err = computeOperationWait(config, op, call.project,
+			err = computeOperationWait(config.clientCompute, op, call.project,
 				fmt.Sprintf("Detaching disk from %s/%s/%s", call.project, call.zone, call.instance))
 			if err != nil {
 				if opErr, ok := err.(ComputeOperationError); ok && len(opErr.Errors) == 1 && opErr.Errors[0].Code == "RESOURCE_NOT_FOUND" {
@@ -892,8 +916,14 @@ func resourceComputeDiskDelete(d *schema.ResourceData, meta interface{}) error {
 		return handleNotFoundError(err, d, "Disk")
 	}
 
+	op := &compute.Operation{}
+	err = Convert(res, op)
+	if err != nil {
+		return err
+	}
+
 	err = computeOperationWaitTime(
-		config, res, project, "Deleting Disk",
+		config.clientCompute, op, project, "Deleting Disk",
 		int(d.Timeout(schema.TimeoutDelete).Minutes()))
 
 	if err != nil {

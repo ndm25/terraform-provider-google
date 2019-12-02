@@ -218,14 +218,14 @@ func resourceFilestoreInstanceCreate(d *schema.ResourceData, meta interface{}) e
 	}
 	d.SetId(id)
 
-	err = filestoreOperationWaitTime(
+	waitErr := filestoreOperationWaitTime(
 		config, res, project, "Creating Instance",
 		int(d.Timeout(schema.TimeoutCreate).Minutes()))
 
-	if err != nil {
+	if waitErr != nil {
 		// The resource didn't actually create
 		d.SetId("")
-		return fmt.Errorf("Error waiting to create Instance: %s", err)
+		return fmt.Errorf("Error waiting to create Instance: %s", waitErr)
 	}
 
 	log.Printf("[DEBUG] Finished creating Instance %q: %#v", d.Id(), res)

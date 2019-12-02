@@ -23,43 +23,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
-func stepTimeoutCustomizeDiff(diff *schema.ResourceDiff, v interface{}) error {
-	buildList := diff.Get("build").([]interface{})
-	if len(buildList) == 0 || buildList[0] == nil {
-		return nil
-	}
-	build := buildList[0].(map[string]interface{})
-	buildTimeoutString := build["timeout"].(string)
-
-	buildTimeout, err := time.ParseDuration(buildTimeoutString)
-	if err != nil {
-		return fmt.Errorf("Error parsing build timeout : %s", err)
-	}
-
-	var stepTimeoutSum time.Duration = 0
-	steps := build["step"].([]interface{})
-	for _, rawstep := range steps {
-		if rawstep == nil {
-			continue
-		}
-		step := rawstep.(map[string]interface{})
-		timeoutString := step["timeout"].(string)
-		if len(timeoutString) == 0 {
-			continue
-		}
-
-		timeout, err := time.ParseDuration(timeoutString)
-		if err != nil {
-			return fmt.Errorf("Error parsing build step timeout: %s", err)
-		}
-		stepTimeoutSum += timeout
-	}
-	if stepTimeoutSum > buildTimeout {
-		return fmt.Errorf("Step timeout sum (%v) cannot be greater than build timeout (%v)", stepTimeoutSum, buildTimeout)
-	}
-	return nil
-}
-
 func resourceCloudBuildTrigger() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceCloudBuildTriggerCreate,
@@ -78,9 +41,64 @@ func resourceCloudBuildTrigger() *schema.Resource {
 		},
 
 		SchemaVersion: 1,
-		CustomizeDiff: stepTimeoutCustomizeDiff,
 
 		Schema: map[string]*schema.Schema{
+			"trigger_template": {
+				Type:     schema.TypeList,
+				Required: true,
+				Description: `Template describing the types of source changes to trigger a build.
+
+Branch and tag names in trigger templates are interpreted as regular
+expressions. Any branch or tag change that matches that regular
+expression will trigger a build.`,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"branch_name": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Description: `Name of the branch to build. Exactly one a of branch name, tag, or commit SHA must be provided.
+This field is a regular expression.`,
+							ExactlyOneOf: []string{"trigger_template.0.branch_name", "trigger_template.0.tag_name", "trigger_template.0.commit_sha"},
+						},
+						"commit_sha": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							Description:  `Explicit commit SHA to build. Exactly one of a branch name, tag, or commit SHA must be provided.`,
+							ExactlyOneOf: []string{"trigger_template.0.branch_name", "trigger_template.0.tag_name", "trigger_template.0.commit_sha"},
+						},
+						"dir": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Description: `Directory, relative to the source root, in which to run the build.
+
+This must be a relative path. If a step's dir is specified and
+is an absolute path, this value is ignored for that step's
+execution.`,
+						},
+						"project_id": {
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+							Description: `ID of the project that owns the Cloud Source Repository. If
+omitted, the project ID requesting the build is assumed.`,
+						},
+						"repo_name": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: `Name of the Cloud Source Repository. If omitted, the name "default" is assumed.`,
+							Default:     "default",
+						},
+						"tag_name": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Description: `Name of the tag to build. Exactly one of a branch name, tag, or commit SHA must be provided.
+This field is a regular expression.`,
+							ExactlyOneOf: []string{"trigger_template.0.branch_name", "trigger_template.0.tag_name", "trigger_template.0.commit_sha"},
+						},
+					},
+				},
+			},
 			"build": {
 				Type:        schema.TypeList,
 				Optional:    true,
@@ -258,16 +276,6 @@ If any of the images fail to be pushed, the build status is marked FAILURE.`,
 								Type: schema.TypeString,
 							},
 						},
-						"timeout": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Description: `Amount of time that this build should be allowed to run, to second granularity. 
-If this amount of time elapses, work on the build will cease and the build status will be TIMEOUT.
-This timeout must be equal to or greater than the sum of the timeouts for build steps within the build.
-The expected format is the number of seconds followed by s.
-Default time is ten minutes (600s).`,
-							Default: "600s",
-						},
 					},
 				},
 				ExactlyOneOf: []string{"filename", "build"},
@@ -333,64 +341,6 @@ a build.`,
 				Optional:    true,
 				Description: `Substitutions data for Build resource.`,
 				Elem:        &schema.Schema{Type: schema.TypeString},
-			},
-			"trigger_template": {
-				Type:     schema.TypeList,
-				Optional: true,
-				Description: `Template describing the types of source changes to trigger a build.
-
-Branch and tag names in trigger templates are interpreted as regular
-expressions. Any branch or tag change that matches that regular
-expression will trigger a build.
-
-One of 'trigger_template' or 'github' must be provided.`,
-				MaxItems: 1,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"branch_name": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Description: `Name of the branch to build. Exactly one a of branch name, tag, or commit SHA must be provided.
-This field is a regular expression.`,
-							ExactlyOneOf: []string{"trigger_template.0.branch_name", "trigger_template.0.tag_name", "trigger_template.0.commit_sha"},
-						},
-						"commit_sha": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							Description:  `Explicit commit SHA to build. Exactly one of a branch name, tag, or commit SHA must be provided.`,
-							ExactlyOneOf: []string{"trigger_template.0.branch_name", "trigger_template.0.tag_name", "trigger_template.0.commit_sha"},
-						},
-						"dir": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Description: `Directory, relative to the source root, in which to run the build.
-
-This must be a relative path. If a step's dir is specified and
-is an absolute path, this value is ignored for that step's
-execution.`,
-						},
-						"project_id": {
-							Type:     schema.TypeString,
-							Computed: true,
-							Optional: true,
-							Description: `ID of the project that owns the Cloud Source Repository. If
-omitted, the project ID requesting the build is assumed.`,
-						},
-						"repo_name": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: `Name of the Cloud Source Repository. If omitted, the name "default" is assumed.`,
-							Default:     "default",
-						},
-						"tag_name": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Description: `Name of the tag to build. Exactly one of a branch name, tag, or commit SHA must be provided.
-This field is a regular expression.`,
-							ExactlyOneOf: []string{"trigger_template.0.branch_name", "trigger_template.0.tag_name", "trigger_template.0.commit_sha"},
-						},
-					},
-				},
 			},
 			"create_time": {
 				Type:        schema.TypeString,
@@ -792,8 +742,6 @@ func flattenCloudBuildTriggerBuild(v interface{}, d *schema.ResourceData) interf
 		flattenCloudBuildTriggerBuildTags(original["tags"], d)
 	transformed["images"] =
 		flattenCloudBuildTriggerBuildImages(original["images"], d)
-	transformed["timeout"] =
-		flattenCloudBuildTriggerBuildTimeout(original["timeout"], d)
 	transformed["step"] =
 		flattenCloudBuildTriggerBuildStep(original["steps"], d)
 	return []interface{}{transformed}
@@ -803,10 +751,6 @@ func flattenCloudBuildTriggerBuildTags(v interface{}, d *schema.ResourceData) in
 }
 
 func flattenCloudBuildTriggerBuildImages(v interface{}, d *schema.ResourceData) interface{} {
-	return v
-}
-
-func flattenCloudBuildTriggerBuildTimeout(v interface{}, d *schema.ResourceData) interface{} {
 	return v
 }
 
@@ -1041,13 +985,6 @@ func expandCloudBuildTriggerBuild(v interface{}, d TerraformResourceData, config
 		transformed["images"] = transformedImages
 	}
 
-	transformedTimeout, err := expandCloudBuildTriggerBuildTimeout(original["timeout"], d, config)
-	if err != nil {
-		return nil, err
-	} else if val := reflect.ValueOf(transformedTimeout); val.IsValid() && !isEmptyValue(val) {
-		transformed["timeout"] = transformedTimeout
-	}
-
 	transformedStep, err := expandCloudBuildTriggerBuildStep(original["step"], d, config)
 	if err != nil {
 		return nil, err
@@ -1063,10 +1000,6 @@ func expandCloudBuildTriggerBuildTags(v interface{}, d TerraformResourceData, co
 }
 
 func expandCloudBuildTriggerBuildImages(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
-	return v, nil
-}
-
-func expandCloudBuildTriggerBuildTimeout(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
 	return v, nil
 }
 
