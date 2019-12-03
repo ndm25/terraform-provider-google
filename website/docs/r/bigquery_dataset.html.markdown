@@ -201,7 +201,9 @@ The `access` block supports:
 
 * `special_group` -
   (Optional)
-  A special group to grant access to. Possible values include:
+  A special group to grant access to.
+
+  Possible values include:
 
   * `projectOwners`: Owners of the enclosing project.
 

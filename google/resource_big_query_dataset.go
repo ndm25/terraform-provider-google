@@ -248,7 +248,10 @@ counterparts, and will show a diff post-create. See
 			"special_group": {
 				Type:     schema.TypeString,
 				Optional: true,
-				Description: `A special group to grant access to. Possible values include:
+				Description: `A special group to grant access to.
+
+
+Possible values include:
 
 
 * 'projectOwners': Owners of the enclosing project.
