@@ -12,8 +12,8 @@ import (
 func TestAccContainerNodePool_basic(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -35,8 +35,9 @@ func TestAccContainerNodePool_basic(t *testing.T) {
 func TestAccContainerNodePool_maxPodsPerNode(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
+	network := fmt.Sprintf("tf-test-net-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -44,7 +45,7 @@ func TestAccContainerNodePool_maxPodsPerNode(t *testing.T) {
 		CheckDestroy: testAccCheckContainerNodePoolDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccContainerNodePool_maxPodsPerNode(cluster, np),
+				Config: testAccContainerNodePool_maxPodsPerNode(cluster, np, network),
 			},
 			{
 				ResourceName:      "google_container_node_pool.np",
@@ -58,7 +59,7 @@ func TestAccContainerNodePool_maxPodsPerNode(t *testing.T) {
 func TestAccContainerNodePool_namePrefix(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -81,7 +82,7 @@ func TestAccContainerNodePool_namePrefix(t *testing.T) {
 func TestAccContainerNodePool_noName(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -103,8 +104,8 @@ func TestAccContainerNodePool_noName(t *testing.T) {
 func TestAccContainerNodePool_withNodeConfig(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	nodePool := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	nodePool := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -140,13 +141,16 @@ func TestAccContainerNodePool_withNodeConfig(t *testing.T) {
 func TestAccContainerNodePool_withGPU(t *testing.T) {
 	t.Parallel()
 
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-np-%s", acctest.RandString(10))
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckContainerNodePoolDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccContainerNodePool_withGPU(),
+				Config: testAccContainerNodePool_withGPU(cluster, np),
 			},
 			{
 				ResourceName:      "google_container_node_pool.np_with_gpu",
@@ -160,8 +164,8 @@ func TestAccContainerNodePool_withGPU(t *testing.T) {
 func TestAccContainerNodePool_withManagement(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	nodePool := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	nodePool := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 	management := `
 	management {
 		auto_repair = "true"
@@ -212,13 +216,16 @@ func TestAccContainerNodePool_withManagement(t *testing.T) {
 func TestAccContainerNodePool_withNodeConfigScopeAlias(t *testing.T) {
 	t.Parallel()
 
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-np-%s", acctest.RandString(10))
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckContainerNodePoolDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccContainerNodePool_withNodeConfigScopeAlias(),
+				Config: testAccContainerNodePool_withNodeConfigScopeAlias(cluster, np),
 			},
 			{
 				ResourceName:      "google_container_node_pool.np_with_node_config_scope_alias",
@@ -233,8 +240,8 @@ func TestAccContainerNodePool_withNodeConfigScopeAlias(t *testing.T) {
 func TestAccContainerNodePool_regionalAutoscaling(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -287,8 +294,8 @@ func TestAccContainerNodePool_regionalAutoscaling(t *testing.T) {
 func TestAccContainerNodePool_autoscaling(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -341,8 +348,8 @@ func TestAccContainerNodePool_autoscaling(t *testing.T) {
 func TestAccContainerNodePool_resize(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -378,8 +385,8 @@ func TestAccContainerNodePool_resize(t *testing.T) {
 func TestAccContainerNodePool_version(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -417,8 +424,8 @@ func TestAccContainerNodePool_version(t *testing.T) {
 func TestAccContainerNodePool_regionalClusters(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -440,8 +447,8 @@ func TestAccContainerNodePool_regionalClusters(t *testing.T) {
 func TestAccContainerNodePool_012_ConfigModeAttr(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -471,8 +478,8 @@ func TestAccContainerNodePool_012_ConfigModeAttr(t *testing.T) {
 func TestAccContainerNodePool_EmptyGuestAccelerator(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -516,8 +523,8 @@ func TestAccContainerNodePool_EmptyGuestAccelerator(t *testing.T) {
 func TestAccContainerNodePool_shieldedInstanceConfig(t *testing.T) {
 	t.Parallel()
 
-	cluster := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
-	np := fmt.Sprintf("tf-nodepool-test-%s", acctest.RandString(10))
+	cluster := fmt.Sprintf("tf-test-cluster-%s", acctest.RandString(10))
+	np := fmt.Sprintf("tf-test-nodepool-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -588,10 +595,10 @@ resource "google_container_node_pool" "np" {
 `, cluster, np)
 }
 
-func testAccContainerNodePool_maxPodsPerNode(cluster, np string) string {
+func testAccContainerNodePool_maxPodsPerNode(cluster, np, network string) string {
 	return fmt.Sprintf(`
 resource "google_compute_network" "container_network" {
-  name                    = "container-net-%s"
+  name                    = "%s"
   auto_create_subnetworks = false
 }
 
@@ -642,7 +649,7 @@ resource "google_container_node_pool" "np" {
   max_pods_per_node  = 30
   initial_node_count = 2
 }
-`, cluster, cluster, np)
+`, network, cluster, np)
 }
 
 func testAccContainerNodePool_regionalClusters(cluster, np string) string {
@@ -915,14 +922,14 @@ resource "google_container_node_pool" "np_with_node_config" {
 `, cluster, nodePool)
 }
 
-func testAccContainerNodePool_withGPU() string {
+func testAccContainerNodePool_withGPU(cluster, np string) string {
 	return fmt.Sprintf(`
 data "google_container_engine_versions" "central1c" {
   location = "us-central1-c"
 }
 
 resource "google_container_cluster" "cluster" {
-  name               = "tf-cluster-nodepool-test-%s"
+  name               = "%s"
   location           = "us-central1-c"
   initial_node_count = 1
   node_version       = data.google_container_engine_versions.central1c.latest_node_version
@@ -930,7 +937,7 @@ resource "google_container_cluster" "cluster" {
 }
 
 resource "google_container_node_pool" "np_with_gpu" {
-  name     = "tf-nodepool-test-%s"
+  name     = "%s"
   location = "us-central1-c"
   cluster  = google_container_cluster.cluster.name
 
@@ -959,19 +966,19 @@ resource "google_container_node_pool" "np_with_gpu" {
     }
   }
 }
-`, acctest.RandString(10), acctest.RandString(10))
+`, cluster, np)
 }
 
-func testAccContainerNodePool_withNodeConfigScopeAlias() string {
+func testAccContainerNodePool_withNodeConfigScopeAlias(cluster, np string) string {
 	return fmt.Sprintf(`
 resource "google_container_cluster" "cluster" {
-  name               = "tf-cluster-nodepool-test-%s"
+  name               = "%s"
   location           = "us-central1-a"
   initial_node_count = 1
 }
 
 resource "google_container_node_pool" "np_with_node_config_scope_alias" {
-  name               = "tf-nodepool-test-%s"
+  name               = "%s"
   location           = "us-central1-a"
   cluster            = google_container_cluster.cluster.name
   initial_node_count = 1
@@ -981,7 +988,7 @@ resource "google_container_node_pool" "np_with_node_config_scope_alias" {
     oauth_scopes = ["compute-rw", "storage-ro", "logging-write", "monitoring"]
   }
 }
-`, acctest.RandString(10), acctest.RandString(10))
+`, cluster, np)
 }
 
 func testAccContainerNodePool_version(cluster, np string) string {

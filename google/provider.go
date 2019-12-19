@@ -221,6 +221,14 @@ func Provider() terraform.ResourceProvider {
 					"GOOGLE_DATAPROC_CUSTOM_ENDPOINT",
 				}, DataprocDefaultBasePath),
 			},
+			"deployment_manager_custom_endpoint": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validateCustomEndpoint,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"GOOGLE_DEPLOYMENT_MANAGER_CUSTOM_ENDPOINT",
+				}, DeploymentManagerDefaultBasePath),
+			},
 			"dns_custom_endpoint": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -454,15 +462,15 @@ func Provider() terraform.ResourceProvider {
 			// We can therefore assume that if it's missing it's 0.10 or 0.11
 			terraformVersion = "0.11+compatible"
 		}
-		return providerConfigure(d, terraformVersion)
+		return providerConfigure(d, provider, terraformVersion)
 	}
 
 	return provider
 }
 
-// Generated resources: 86
-// Generated IAM resources: 42
-// Total generated resources: 128
+// Generated resources: 88
+// Generated IAM resources: 45
+// Total generated resources: 133
 func ResourceMap() map[string]*schema.Resource {
 	resourceMap, _ := ResourceMapWithErrors()
 	return resourceMap
@@ -525,6 +533,7 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_compute_node_template":                     resourceComputeNodeTemplate(),
 			"google_compute_region_autoscaler":                 resourceComputeRegionAutoscaler(),
 			"google_compute_region_disk":                       resourceComputeRegionDisk(),
+			"google_compute_region_health_check":               resourceComputeRegionHealthCheck(),
 			"google_compute_resource_policy":                   resourceComputeResourcePolicy(),
 			"google_compute_route":                             resourceComputeRoute(),
 			"google_compute_router":                            resourceComputeRouter(),
@@ -548,6 +557,7 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_compute_vpn_tunnel":                        resourceComputeVpnTunnel(),
 			"google_container_analysis_note":                   resourceContainerAnalysisNote(),
 			"google_dataproc_autoscaling_policy":               resourceDataprocAutoscalingPolicy(),
+			"google_deployment_manager_deployment":             resourceDeploymentManagerDeployment(),
 			"google_dns_managed_zone":                          resourceDNSManagedZone(),
 			"google_filestore_instance":                        resourceFilestoreInstance(),
 			"google_firestore_index":                           resourceFirestoreIndex(),
@@ -595,6 +605,9 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_spanner_instance":                          resourceSpannerInstance(),
 			"google_spanner_database":                          resourceSpannerDatabase(),
 			"google_sql_database":                              resourceSQLDatabase(),
+			"google_storage_bucket_iam_binding":                ResourceIamBinding(StorageBucketIamSchema, StorageBucketIamUpdaterProducer, StorageBucketIdParseFunc),
+			"google_storage_bucket_iam_member":                 ResourceIamMember(StorageBucketIamSchema, StorageBucketIamUpdaterProducer, StorageBucketIdParseFunc),
+			"google_storage_bucket_iam_policy":                 ResourceIamPolicy(StorageBucketIamSchema, StorageBucketIamUpdaterProducer, StorageBucketIdParseFunc),
 			"google_storage_bucket_access_control":             resourceStorageBucketAccessControl(),
 			"google_storage_object_access_control":             resourceStorageObjectAccessControl(),
 			"google_storage_default_object_access_control":     resourceStorageDefaultObjectAccessControl(),
@@ -699,22 +712,16 @@ func ResourceMapWithErrors() (map[string]*schema.Resource, error) {
 			"google_service_account_key":                   resourceGoogleServiceAccountKey(),
 			"google_storage_bucket":                        resourceStorageBucket(),
 			"google_storage_bucket_acl":                    resourceStorageBucketAcl(),
-			// Legacy roles such as roles/storage.legacyBucketReader are automatically added
-			// when creating a bucket. For this reason, it is better not to add the authoritative
-			// google_storage_bucket_iam_policy resource.
-			"google_storage_bucket_iam_binding": ResourceIamBinding(IamStorageBucketSchema, NewStorageBucketIamUpdater, StorageBucketIdParseFunc),
-			"google_storage_bucket_iam_member":  ResourceIamMember(IamStorageBucketSchema, NewStorageBucketIamUpdater, StorageBucketIdParseFunc),
-			"google_storage_bucket_iam_policy":  ResourceIamPolicy(IamStorageBucketSchema, NewStorageBucketIamUpdater, StorageBucketIdParseFunc),
-			"google_storage_bucket_object":      resourceStorageBucketObject(),
-			"google_storage_object_acl":         resourceStorageObjectAcl(),
-			"google_storage_default_object_acl": resourceStorageDefaultObjectAcl(),
-			"google_storage_notification":       resourceStorageNotification(),
-			"google_storage_transfer_job":       resourceStorageTransferJob(),
+			"google_storage_bucket_object":                 resourceStorageBucketObject(),
+			"google_storage_object_acl":                    resourceStorageObjectAcl(),
+			"google_storage_default_object_acl":            resourceStorageDefaultObjectAcl(),
+			"google_storage_notification":                  resourceStorageNotification(),
+			"google_storage_transfer_job":                  resourceStorageTransferJob(),
 		},
 	)
 }
 
-func providerConfigure(d *schema.ResourceData, terraformVersion string) (interface{}, error) {
+func providerConfigure(d *schema.ResourceData, p *schema.Provider, terraformVersion string) (interface{}, error) {
 	config := Config{
 		Project:             d.Get("project").(string),
 		Region:              d.Get("region").(string),
@@ -766,6 +773,7 @@ func providerConfigure(d *schema.ResourceData, terraformVersion string) (interfa
 	config.ComputeBasePath = d.Get("compute_custom_endpoint").(string)
 	config.ContainerAnalysisBasePath = d.Get("container_analysis_custom_endpoint").(string)
 	config.DataprocBasePath = d.Get("dataproc_custom_endpoint").(string)
+	config.DeploymentManagerBasePath = d.Get("deployment_manager_custom_endpoint").(string)
 	config.DNSBasePath = d.Get("dns_custom_endpoint").(string)
 	config.FilestoreBasePath = d.Get("filestore_custom_endpoint").(string)
 	config.FirestoreBasePath = d.Get("firestore_custom_endpoint").(string)
@@ -806,7 +814,7 @@ func providerConfigure(d *schema.ResourceData, terraformVersion string) (interfa
 	config.StorageTransferBasePath = d.Get(StorageTransferCustomEndpointEntryKey).(string)
 	config.BigtableAdminBasePath = d.Get(BigtableAdminCustomEndpointEntryKey).(string)
 
-	if err := config.LoadAndValidate(); err != nil {
+	if err := config.LoadAndValidate(p.StopContext()); err != nil {
 		return nil, err
 	}
 
